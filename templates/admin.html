@@ -111,6 +111,79 @@
     <div class="tabs">
         <div class="tab active" onclick="showTab('users', this)">👤 Пользователи</div>
         <div class="tab" onclick="showTab('cookies', this)">
+
+
+
+            <div id="cookies-section">
+    <h2>Cookies</h2>
+    <div id="cookies-list">Загрузка...</div>
+</div>
+
+<script>
+async function loadCookies() {
+    const res = await fetch("/admin/get_cookies");
+    const data = await res.json();
+
+    const box = document.getElementById("cookies-list");
+    box.innerHTML = "";
+
+    if (data.cookies.length === 0) {
+        box.innerHTML = "<p>Куки отсутствуют</p>";
+        return;
+    }
+
+    data.cookies.forEach(file => {
+        const row = document.createElement("div");
+        row.className = "cookie-row";
+
+        row.innerHTML = `
+            <span>${file}</span>
+            <button onclick="deleteCookie('${file}')" class="del-btn">Удалить</button>
+        `;
+
+        box.appendChild(row);
+    });
+}
+
+async function deleteCookie(filename) {
+    if (!confirm(`Удалить ${filename}?`)) return;
+
+    const res = await fetch(`/admin/delete_cookie?filename=${filename}`, {
+        method: "DELETE"
+    });
+
+    const data = await res.json();
+
+    if (data.status === "ok") {
+        alert(`Удалено: ${data.deleted}`);
+        loadCookies(); // обновление списка
+    }
+}
+
+// Загружаем куки при открытии страницы
+loadCookies();
+</script>
+
+<style>
+.cookie-row {
+    display: flex;
+    justify-content: space-between;
+    background: #1f1f1f;
+    padding: 10px;
+    margin: 5px 0;
+    border-radius: 8px;
+}
+
+.del-btn {
+    background: #ff4444;
+    border: none;
+    padding: 6px 12px;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+}
+</style>
+
             🍪 Cookies <span class="badge">{{ cookies_count }}</span>
         </div>
         <div class="tab" onclick="showTab('logs', this)">🧾 Логи</div>
