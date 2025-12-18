@@ -15,7 +15,8 @@ import time
 import requests
 import aiosqlite
 
-
+from fastapi.templating import Jinja2Templates
+from fastapi import Request
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
@@ -30,6 +31,7 @@ CRYPTO_PAY_TOKEN = "503282:AAhicdmjgL8Xdl1CuQBAuTAKfkMUY5Vs81M"
 ADMINS = [7502766261, 7647339913, 7775660406, 8326123233]
 ACCOUNT_PRICE = 1.5
 INVOICE_TTL = 600  # 10 минут
+templates = Jinja2Templates(directory="templates")
 
 # ============================================
 logging.basicConfig(level=logging.INFO)
@@ -1052,28 +1054,36 @@ LOGS_DIR = f"{BASE_DIR}/logs"
 
 
 @app.get("/", response_class=HTMLResponse)
-def admin_panel():
+async def index(request: Request):
     users = []
     cookies = []
-    sales = []
+    logs = []
 
-    # ---------- USERS ----------
     if os.path.exists(DB_PATH):
         conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
-        cur.execute("SELECT uid, user_id, balance FROM users")
+        cur.execute("SELECT user_id, uid, balance FROM users")
         users = cur.fetchall()
         conn.close()
 
-    # ---------- COOKIES ----------
     if os.path.exists(COOKIES_DIR):
-        cookies = sorted(os.listdir(COOKIES_DIR))
+        cookies = os.listdir(COOKIES_DIR)
 
-    # ---------- LOGS ----------
-    sales_log = f"{LOGS_DIR}/sales.log"
-    if os.path.exists(sales_log):
-        with open(sales_log, "r", encoding="utf-8") as f:
-            sales = f.readlines()[-30:]
+    if os.path.exists(f"{LOGS_DIR}/sales.log"):
+        with open(f"{LOGS_DIR}/sales.log", "r", encoding="utf-8") as f:
+            logs = f.readlines()[::-1]
+
+    return templates.TemplateResponse(
+        "admin.html",
+        {
+            "request": request,
+            "users": users,
+            "cookies": cookies,
+            "logs": logs,
+            "cookies_count": len(cookies),
+            "users_count": len(users)
+        }
+    )
 
     html = f"""
 <!DOCTYPE html>
