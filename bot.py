@@ -1031,8 +1031,82 @@ async def broadcast_send(msg: types.Message, state: FSMContext):
     await state.finish()
 
 
+
+
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
+import sqlite3
+import os
+
+app = FastAPI()
+
+DB_PATH = "shop.db"
+COOKIES_DIR = "cookies"
+LOGS_DIR = "logs"
+
+
+@app.get("/", response_class=HTMLResponse)
+def index():
+    users = []
+    cookies = []
+    sales = []
+
+    if os.path.exists(DB_PATH):
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+
+        cur.execute("SELECT user_id, uid, balance FROM users")
+        users = cur.fetchall()
+
+        conn.close()
+
+    if os.path.exists(COOKIES_DIR):
+        cookies = os.listdir(COOKIES_DIR)
+
+    if os.path.exists(f"{LOGS_DIR}/sales.log"):
+        with open(f"{LOGS_DIR}/sales.log", "r", encoding="utf-8") as f:
+            sales = f.readlines()[-20:]
+
+    html = "<h1>📊 Admin Panel</h1>"
+
+    html += "<h2>👤 Пользователи</h2><ul>"
+    for u in users:
+        html += f"<li>UID: {u[1]} | TG: {u[0]} | Баланс: {u[2]}</li>"
+    html += "</ul>"
+
+    html += "<h2>🍪 Cookies</h2><ul>"
+    for c in cookies:
+        html += f"<li>{c}</li>"
+    html += "</ul>"
+
+    html += "<h2>🧾 Последние продажи</h2><pre>"
+    html += "".join(sales)
+    html += "</pre>"
+
+    return html
+
+
+
+
+
+
 # ================= START =================
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.run_until_complete(init_db())
-    executor.start_polling(dp, skip_updates=True)
+    import uvicorn
+    import threading
+
+
+    def start_bot():
+        executor.start_polling(dp, skip_updates=True)
+
+
+    threading.Thread(target=start_bot).start()
+
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 8000))
+    )
+
