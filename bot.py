@@ -14,7 +14,7 @@ import os
 import time
 import requests
 import aiosqlite
-import threading
+
 
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -33,8 +33,6 @@ INVOICE_TTL = 600  # 10 минут
 
 # ============================================
 logging.basicConfig(level=logging.INFO)
-threading.Thread(target=start_bot, daemon=True).start()
-
 
 bot = Bot(API_TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
@@ -1112,6 +1110,9 @@ if __name__ == "__main__":
         asyncio.set_event_loop(loop)
 
         executor.start_polling(dp, skip_updates=True)
+import threading
+
+threading.Thread(target=start_bot, daemon=True).start()
 
 
 
