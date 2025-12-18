@@ -3,9 +3,6 @@ COOKIES_DIR = f"{BASE_DIR}/cookies"
 LOGS_DIR = f"{BASE_DIR}/logs"
 DB_PATH = f"{BASE_DIR}/shop.db"
 
-
-
-
 # pip install aiogram==2.25.1 aiosqlite requests
 import datetime
 import asyncio
@@ -37,30 +34,38 @@ bot = Bot(API_TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
 DB_LOCK = Lock()
 
+
 # ================= FSM =================
 class TopUp(StatesGroup):
     waiting_amount = State()
+
 
 class Buy(StatesGroup):
     choosing_amount = State()
     confirm = State()
 
+
 class Broadcast(StatesGroup):
     waiting_text = State()
+
 
 class AdminGive(StatesGroup):
     waiting_uid = State()
     waiting_amount = State()
 
+
 class AdminHistory(StatesGroup):
     waiting_uid = State()
+
 
 class AdminStates(StatesGroup):
     waiting_toggle_ban = State()
 
+
 # ================= DATABASE =================
 os.makedirs(COOKIES_DIR, exist_ok=True)
 os.makedirs(LOGS_DIR, exist_ok=True)
+
 
 async def init_db():
     os.makedirs(COOKIES_DIR, exist_ok=True)
@@ -68,42 +73,74 @@ async def init_db():
 
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            user_id INTEGER PRIMARY KEY,
-            uid TEXT UNIQUE,
-            balance REAL DEFAULT 0,
-            banned INTEGER DEFAULT 0
-        )
-        """)
+                         CREATE TABLE IF NOT EXISTS users
+                         (
+                             user_id
+                             INTEGER
+                             PRIMARY
+                             KEY,
+                             uid
+                             TEXT
+                             UNIQUE,
+                             balance
+                             REAL
+                             DEFAULT
+                             0,
+                             banned
+                             INTEGER
+                             DEFAULT
+                             0
+                         )
+                         """)
 
         await db.execute("""
-        CREATE TABLE IF NOT EXISTS accounts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            filename TEXT,
-            sold INTEGER DEFAULT 0
-        )
-        """)
+                         CREATE TABLE IF NOT EXISTS accounts
+                         (
+                             id
+                             INTEGER
+                             PRIMARY
+                             KEY
+                             AUTOINCREMENT,
+                             filename
+                             TEXT,
+                             sold
+                             INTEGER
+                             DEFAULT
+                             0
+                         )
+                         """)
 
         await db.execute("""
-        CREATE TABLE IF NOT EXISTS invoices (
-            invoice_id INTEGER PRIMARY KEY,
-            user_id INTEGER,
-            amount REAL,
-            paid INTEGER DEFAULT 0,
-            created_at INTEGER
-        )
-        """)
+                         CREATE TABLE IF NOT EXISTS invoices
+                         (
+                             invoice_id
+                             INTEGER
+                             PRIMARY
+                             KEY,
+                             user_id
+                             INTEGER,
+                             amount
+                             REAL,
+                             paid
+                             INTEGER
+                             DEFAULT
+                             0,
+                             created_at
+                             INTEGER
+                         )
+                         """)
 
         await db.commit()
 
 
 import secrets
 
+
 def generate_uid():
     return "U-" + secrets.token_hex(3).upper()
 
-async def is_user_banned(user_id: int) -> bool:
 
+async def is_user_banned(user_id: int) -> bool:
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
             "SELECT is_banned FROM users WHERE user_id=?",
@@ -147,6 +184,7 @@ async def get_balance(user_id):
 
         return row[0]
 
+
 async def change_balance(user_id: int, amount: float):
     async with aiosqlite.connect(DB_PATH) as db:
         # если пользователя нет — создаём
@@ -180,6 +218,7 @@ def create_invoice(amount, user_id):
     ).json()
     return r["result"]
 
+
 # ================= KEYBOARDS =================
 
 def amount_kb(max_count: int = 5):
@@ -196,6 +235,7 @@ def amount_kb(max_count: int = 5):
     kb.add(InlineKeyboardButton("⬅️ Назад", callback_data="back"))
     return kb
 
+
 def main_kb(is_admin=False):
     kb = InlineKeyboardMarkup(row_width=1)
     kb.add(InlineKeyboardButton("🎁 Купить аккаунт", callback_data="buy"))
@@ -204,9 +244,11 @@ def main_kb(is_admin=False):
         kb.add(InlineKeyboardButton("🎅 Админка", callback_data="admin"))
     return kb
 
+
 back_kb = InlineKeyboardMarkup().add(
     InlineKeyboardButton("⬅️ Назад", callback_data="back")
 )
+
 
 async def catalog_kb():
     async with aiosqlite.connect(DB_PATH) as db:
@@ -234,11 +276,9 @@ async def catalog_kb():
     return kb
 
 
-
 @dp.callback_query_handler(lambda c: c.data == "no_items")
 async def no_items(call: types.CallbackQuery):
     await call.answer("❌ Товар временно отсутствует", show_alert=True)
-
 
 
 admin_kb = InlineKeyboardMarkup(row_width=1)
@@ -259,6 +299,7 @@ async def safe_delete(msg: types.Message):
 
 # ================= MENU =================
 from aiogram.types import InputFile
+
 
 async def send_menu(chat_id: int, user_id: int):
     async with aiosqlite.connect(DB_PATH) as db:
@@ -292,7 +333,6 @@ async def send_menu(chat_id: int, user_id: int):
             (user_id,)
         )
         uid = (await cur.fetchone())[0]
-
 
     text = (
         "🎄 Главное меню\n"
@@ -328,18 +368,14 @@ async def menu_cb(call: types.CallbackQuery, state: FSMContext):
     )
 
 
-
 @dp.callback_query_handler(lambda c: c.data == "back", state="*")
 async def back(call: types.CallbackQuery, state: FSMContext):
-    await state.finish()   # ← ВАЖНО
+    await state.finish()  # ← ВАЖНО
     await safe_delete(call.message)
     await send_menu(
         chat_id=call.message.chat.id,
         user_id=call.from_user.id
     )
-
-
-
 
 
 @dp.message_handler(commands=["start"])
@@ -349,6 +385,7 @@ async def start(msg: types.Message):
         chat_id=msg.chat.id,
         user_id=msg.from_user.id
     )
+
 
 @dp.callback_query_handler(lambda c: c.data == "faq")
 async def faq(call: types.CallbackQuery):
@@ -363,7 +400,7 @@ async def faq(call: types.CallbackQuery):
 
 
 
-    
+
         "\n\n❗┃ Условия участия в проекте\n\nУважаемые участники, настоятельно рекомендуем внимательно ознакомиться с положениями, определяющими правила использования проекта.\n\n1. Виртуальный счёт\n\n• Все средства, отображаемые в боте, носят исключительно виртуальный характер и не являются реальными денежными активами.\n\n• Администрация вправе в любой момент скорректировать или обнулить виртуальный баланс без предварительного уведомления пользователя.\n\n2. Отсутствие возвратов\n\n• Любые операции, совершённые с применением виртуальной валюты, считаются завершёнными и не подлежат пересмотру.\n\n• Возврат виртуальных средств, включая отмену чеков и операций, не осуществляется.\n\n3. Корректное взаимодействие\n\n• Недопустимы оскорбления, грубость или неуважительное общение в адрес службы поддержки либо администрации проекта.\n\n• В случае нарушения данного пункта администрация оставляет за собой право ограничить доступ пользователя без дополнительного объяснения.\n\n4. Право отказа в обслуживании\n\n• Администрация может отказать в предоставлении услуг по своему усмотрению без указания причин. Несмотря на стремление к высокому качеству сервиса, данное право сохраняется за проектом.\n\n5. Обмен товаров (обязательное видеоподтверждение)\n\n• Рассмотрение запроса на замену товара возможно только при наличии непрерывной видеозаписи.\n\n• Обратите внимание: видео должно начинаться до момента покупки и фиксировать весь процесс до окончания проверки товара.\n\n• Записи, сделанные после завершения покупки, к рассмотрению не принимаются.\n\n• Срок гарантированной проверки аккаунта — 10 минут."
     )
 
@@ -374,11 +411,9 @@ async def faq(call: types.CallbackQuery):
     await call.message.answer(text, reply_markup=kb)
 
 
-
 # ================= TOPUP =================
 @dp.callback_query_handler(lambda c: c.data == "topup")
 async def topup(call: types.CallbackQuery):
-
     # 🔒 ПРОВЕРКА БАНА
     if await is_user_banned(call.from_user.id):
         await call.answer("🚫 Вы заблокированы", show_alert=True)
@@ -388,6 +423,7 @@ async def topup(call: types.CallbackQuery):
 
     await call.message.answer("💎 Введите сумму пополнения (USDT):", reply_markup=back_kb)
     await TopUp.waiting_amount.set()
+
 
 @dp.message_handler(state=TopUp.waiting_amount)
 async def topup_amount(msg: types.Message, state: FSMContext):
@@ -400,7 +436,6 @@ async def topup_amount(msg: types.Message, state: FSMContext):
         return
 
     invoice = create_invoice(amount, msg.from_user.id)
-
 
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
@@ -416,16 +451,14 @@ async def topup_amount(msg: types.Message, state: FSMContext):
     await msg.answer(f"🎁 Оплатите {amount} USDT:\n{invoice['pay_url']}", reply_markup=kb)
     await state.finish()
 
+
 # ================= CHECK PAYMENT =================
 @dp.callback_query_handler(lambda c: c.data.startswith("check_"))
 async def check_payment(call: types.CallbackQuery):
-
     # 🔒 ПРОВЕРКА БАНА
     if await is_user_banned(call.from_user.id):
         await call.answer("🚫 Вы заблокированы", show_alert=True)
         return
-
-
 
     invoice_id = int(call.data.split("_")[1])
 
@@ -504,9 +537,7 @@ async def check_payment(call: types.CallbackQuery):
     )
 
 
-
 # ================= CATALOG & BUY =================
-
 
 
 @dp.callback_query_handler(lambda c: c.data == "buy")
@@ -521,7 +552,6 @@ async def show_catalog(call: types.CallbackQuery):
 # ===== ШАГ 1: НАЧАЛО ПОКУПКИ (выбор количества) =====
 @dp.callback_query_handler(lambda c: c.data == "buy_mp")
 async def start_buy(call: types.CallbackQuery, state: FSMContext):
-
     # 🔒 ПРОВЕРКА БАНА
     if await is_user_banned(call.from_user.id):
         await call.answer("🚫 Вы заблокированы", show_alert=True)
@@ -620,31 +650,37 @@ async def confirm_buy(call: types.CallbackQuery, state: FSMContext):
 
         await db.commit()
 
-    # отправка файлов
+    # ===== отправка файлов =====
     for _, filename in accounts:
-        filepath = f"{COOKIES_DIR}/{filename}"
+        path = f"{COOKIES_DIR}/{filename}"
+
         if os.path.exists(path):
             with open(path, "rb") as f:
                 await bot.send_document(user_id, f)
 
             os.remove(path)
 
+    # ===== списание баланса =====
     await change_balance(user_id, -total_price)
+
     filenames = [f for _, f in accounts]
 
-    # лог
-    os.makedirs("logs", exist_ok=True)
-    with open(f"{LOGS_DIR}/sales.log", "a") as log:
-        async with aiosqlite.connect(DB_PATH) as db:
-            cur = await db.execute("SELECT uid FROM users WHERE user_id=?", (user_id,))
-            uid = (await cur.fetchone())[0]
+    # ===== лог =====
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(
+            "SELECT uid FROM users WHERE user_id=?",
+            (user_id,)
+        )
+        uid = (await cur.fetchone())[0]
 
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    with open(f"{LOGS_DIR}/sales.log", "a", encoding="utf-8") as log:
         log.write(
             f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | "
             f"uid={uid} | "
             f"tg_id={user_id} | "
-            f"file={filename} | "
-            f"price={ACCOUNT_PRICE}\n"
+            f"files={','.join(filenames)} | "
+            f"total_price={total_price}\n"
         )
 
     await state.finish()
@@ -660,6 +696,7 @@ async def confirm_buy(call: types.CallbackQuery, state: FSMContext):
         chat_id=call.message.chat.id,
         user_id=user_id
     )
+
 
 
 # ===== НАЗАД ИЗ ПОДТВЕРЖДЕНИЯ =====
@@ -687,8 +724,8 @@ async def back_to_amount(call: types.CallbackQuery, state: FSMContext):
 
     await Buy.choosing_amount.set()
 
-# ================= ADMIN =================
 
+# ================= ADMIN =================
 
 
 @dp.callback_query_handler(lambda c: c.data == "admin_toggle_ban")
@@ -702,6 +739,7 @@ async def admin_toggle_ban_start(call: types.CallbackQuery):
     )
 
     await AdminStates.waiting_toggle_ban.set()
+
 
 @dp.message_handler(state=AdminStates.waiting_toggle_ban)
 async def admin_toggle_ban(msg: types.Message, state: FSMContext):
@@ -826,7 +864,6 @@ async def admin_uid_history_show(msg: types.Message, state: FSMContext):
     )
 
 
-
 @dp.callback_query_handler(lambda c: c.data == "admin")
 async def admin(call: types.CallbackQuery):
     await safe_delete(call.message)
@@ -834,22 +871,22 @@ async def admin(call: types.CallbackQuery):
     if call.from_user.id in ADMINS:
         await call.message.answer("🎅 Админ-панель", reply_markup=admin_kb)
 
+
 @dp.callback_query_handler(lambda c: c.data == "add")
 async def add(call: types.CallbackQuery):
     await safe_delete(call.message)
 
     await call.message.answer("🎄 Отправьте cookie-файлы", reply_markup=back_kb)
 
+
 @dp.message_handler(content_types=types.ContentType.DOCUMENT)
 async def save_cookie(msg: types.Message):
     if msg.from_user.id not in ADMINS:
         return
 
-    filename = msg.document.file_name  # ← ОБЯЗАТЕЛЬНО
+    filename = msg.document.file_name  # ← ВАЖНО
 
     file = await bot.get_file(msg.document.file_id)
-
-    print("Saving file as:", filename)  # ← ВОТ СЮДА
 
     await bot.download_file(
         file.file_path,
@@ -866,9 +903,6 @@ async def save_cookie(msg: types.Message):
     await msg.answer("✅ Cookies успешно добавлены")
 
 
-
-
-
 @dp.callback_query_handler(lambda c: c.data == "give")
 async def give_start(call: types.CallbackQuery, state: FSMContext):
     if call.from_user.id not in ADMINS:
@@ -882,6 +916,7 @@ async def give_start(call: types.CallbackQuery, state: FSMContext):
     )
 
     await AdminGive.waiting_uid.set()
+
 
 @dp.message_handler(state=AdminGive.waiting_uid)
 async def admin_give_uid(msg: types.Message, state: FSMContext):
@@ -906,6 +941,7 @@ async def admin_give_uid(msg: types.Message, state: FSMContext):
     )
 
     await AdminGive.waiting_amount.set()
+
 
 @dp.message_handler(state=AdminGive.waiting_amount)
 async def admin_give_amount(msg: types.Message, state: FSMContext):
@@ -940,6 +976,7 @@ async def admin_give_amount(msg: types.Message, state: FSMContext):
         )
     )
 
+
 @dp.callback_query_handler(lambda c: c.data == "broadcast")
 async def broadcast_start(call: types.CallbackQuery, state: FSMContext):
     if call.from_user.id not in ADMINS:
@@ -953,6 +990,7 @@ async def broadcast_start(call: types.CallbackQuery, state: FSMContext):
     )
 
     await Broadcast.waiting_text.set()
+
 
 @dp.message_handler(state=Broadcast.waiting_text)
 async def broadcast_send(msg: types.Message, state: FSMContext):
@@ -985,7 +1023,6 @@ async def broadcast_send(msg: types.Message, state: FSMContext):
     )
 
     await state.finish()
-
 
 
 # ================= START =================
