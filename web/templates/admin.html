@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Panel</title>
+    <style>
+        body { font-family: Arial; background:#111; color:#fff; padding:20px; }
+        h2 { margin-top:40px; }
+        table { border-collapse: collapse; width:100%; }
+        td, th { border:1px solid #444; padding:8px; }
+    </style>
+</head>
+<body>
+
+<h1>📊 Admin Panel</h1>
+
+<h2>👥 Пользователи</h2>
+<table>
+    <tr>
+        <th>UID</th>
+        <th>Telegram ID</th>
+        <th>Баланс</th>
+        <th>Бан</th>
+    </tr>
+    {% for u in users %}
+    <tr>
+        <td>{{ u[0] }}</td>
+        <td>{{ u[1] }}</td>
+        <td>{{ u[2] }}</td>
+        <td>{{ u[3] }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+<h2>📦 Cookies</h2>
+<ul>
+    {% for c in cookies %}
+        <li>{{ c }}</li>
+    {% endfor %}
+</ul>
+
+</body>
+</html>
