@@ -25,7 +25,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from asyncio import Lock
 
 # ================= НАСТРОЙКИ =================
-API_TOKEN = "8575586934:AAGbuGCMRtmx-0zQ-qjNQ7I8FHb4dDB6rW4"
+API_TOKEN = "8089023622:AAEUc8InFdHCCMw6tIjRJbqRFpIGdL0SiAY"
 CRYPTO_PAY_TOKEN = "503282:AAhicdmjgL8Xdl1CuQBAuTAKfkMUY5Vs81M"
 
 ADMINS = [7502766261, 7647339913, 7775660406, 8326123233]
@@ -267,10 +267,6 @@ def main_kb(is_admin=False):
 back_kb = InlineKeyboardMarkup().add(
     InlineKeyboardButton("⬅️ Назад", callback_data="back")
 )
-cookie_done_kb = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text="➕ Добавить ещё", callback_data="add_more_cookies")],
-    [InlineKeyboardButton(text="⬅ Назад", callback_data="admin")]
-])
 
 
 async def catalog_kb():
@@ -661,17 +657,36 @@ async def confirm_buy(call: types.CallbackQuery, state: FSMContext):
         await db.commit()
 
     # ===== отправка файлов =====
-    for _, filename in accounts:
-        path = f"{COOKIES_DIR}/{filename}"
+    # ===== выдача файлов покупателю =====
+    # ===== ВЫДАЧА ТОВАРОВ =====
+    successful_files = []
 
-        if os.path.exists(path):
-            with open(path, "rb") as f:
+    for acc_id, filename in accounts:
+        filepath = f"{COOKIES_DIR}/{filename}"
+
+        if not os.path.exists(filepath):
+            print(f"Файл {filename} не найден, пропускаю")
+            continue
+
+        try:
+            with open(filepath, "rb") as f:
                 await bot.send_document(user_id, f)
 
-            os.remove(path)
+            successful_files.append((acc_id, filepath))
 
-    # ===== списание баланса =====
-    await change_balance(user_id, -total_price)
+        except Exception as e:
+            print(f"Ошибка отправки {filename}:", e)
+            continue
+
+    # ===== ПОСЛЕ УСПЕШНОЙ ОТПРАВКИ =====
+    async with aiosqlite.connect("data/shop.db") as db:
+        for acc_id, filepath in successful_files:
+            await db.execute("UPDATE accounts SET sold = 1 WHERE id = ?", (acc_id,))
+            try:
+                os.remove(filepath)
+            except:
+                pass
+        await db.commit()
 
     filenames = [f for _, f in accounts]
 
@@ -883,12 +898,6 @@ async def admin(call: types.CallbackQuery):
     if call.from_user.id in ADMINS:
         await call.message.answer("🎅 Админ-панель", reply_markup=admin_kb)
 
-@dp.callback_query_handler(lambda c: c.data == "add_more_cookies")
-async def add_more_cookies(call: types.CallbackQuery):
-    await call.message.answer("📁 Отправьте следующий cookie-файл", reply_markup=back_kb)
-    await call.answer()
-
-
 
 @dp.callback_query_handler(lambda c: c.data == "add")
 async def add(call: types.CallbackQuery):
@@ -920,10 +929,10 @@ async def save_cookie(msg: types.Message):
             "INSERT INTO accounts (filename, sold) VALUES (?, 0)",
             (filename,)
         )
-        await msg.answer(
-        "✅ Cookies успешно добавлены",
-        reply_markup=cookie_done_kb  # ← ВАЖНО!
-    )
+        await db.commit()
+
+    await msg.answer("✅ Cookies успешно добавлены")
+
 
 
 @dp.callback_query_handler(lambda c: c.data == "give")
@@ -1236,6 +1245,25 @@ def start_bot():
     executor.start_polling(dp, skip_updates=True)
 
 
+async def restore_missing_cookies():
+    files = os.listdir(COOKIES_DIR)
+
+    async with aiosqlite.connect("data/shop.db") as db:
+        for filename in files:
+            # есть ли запись в базе?
+            cur = await db.execute("SELECT 1 FROM accounts WHERE filename = ?", (filename,))
+            exists = await cur.fetchone()
+
+            if exists is None:
+                print("Восстанавливаю файл:", filename)
+                await db.execute(
+                    "INSERT INTO accounts (filename, sold) VALUES (?, 0)",
+                    (filename,)
+                )
+
+        await db.commit()
+
+
 
 if __name__ == "__main__":
     import threading
@@ -1243,3 +1271,10 @@ if __name__ == "__main__":
 
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8080)
+
+
+
+
+
+
+
