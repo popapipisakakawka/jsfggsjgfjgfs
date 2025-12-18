@@ -845,9 +845,10 @@ async def save_cookie(msg: types.Message):
     if msg.from_user.id not in ADMINS:
         return
 
-    filename = msg.document.file_name
+    filename = msg.document.file_name   # ← ВОТ ЭТА СТРОКА ОБЯЗАТЕЛЬНА
 
     file = await bot.get_file(msg.document.file_id)
+
     await bot.download_file(
         file.file_path,
         filepath=f"{COOKIES_DIR}/{filename}"
@@ -861,6 +862,7 @@ async def save_cookie(msg: types.Message):
         await db.commit()
 
     await msg.answer("✅ Cookies успешно добавлены")
+
 
 
 @dp.callback_query_handler(lambda c: c.data == "give")
