@@ -920,11 +920,10 @@ async def save_cookie(msg: types.Message):
             "INSERT INTO accounts (filename, sold) VALUES (?, 0)",
             (filename,)
         )
-        await db.commit()
-
-    await msg.answer("✅ Cookies успешно добавлены")
-
-
+        await msg.answer(
+        "✅ Cookies успешно добавлены",
+        reply_markup=cookie_done_kb  # ← ВАЖНО!
+    )
 
 
 @dp.callback_query_handler(lambda c: c.data == "give")
