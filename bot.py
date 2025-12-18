@@ -1072,6 +1072,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 import sqlite3
 import os
+app = FastAPI()
 
 
 @app.delete("/admin/delete_cookie")
