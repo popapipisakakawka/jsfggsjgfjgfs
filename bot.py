@@ -304,7 +304,7 @@ admin_kb.add(InlineKeyboardButton("📢 Оповещение", callback_data="br
 admin_kb.add(InlineKeyboardButton("🎁 Выдать баланс", callback_data="give"))
 admin_kb.add(InlineKeyboardButton("📊 История по UID", callback_data="admin_uid_history"))
 admin_kb.add(InlineKeyboardButton("🚫 Бан / Разбан пользователя", callback_data="admin_toggle_ban"))
-admin_kb.add(InlineKeyboardButton("📊 Панель",web_app=types.WebAppInfo(url="https://ТВОЙ_RAILWAY_URL")))
+admin_kb.add(InlineKeyboardButton("📊 Панель",web_app=types.WebAppInfo(url="https://worker-production-1685.up.railway.app/")))
 admin_kb.add(InlineKeyboardButton("⬅️ Назад", callback_data="back"))
 
 
