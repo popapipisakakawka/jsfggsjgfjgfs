@@ -180,6 +180,22 @@
         });
     }
 </script>
+<script>
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+
+    const user = tg.initDataUnsafe.user;
+
+    if (!user) {
+        document.body.innerHTML = "❌ Telegram user not found";
+    } else {
+        const url = new URL(window.location.href);
+        if (!url.searchParams.get("tg_id")) {
+            url.searchParams.set("tg_id", user.id);
+            window.location.replace(url.toString());
+        }
+    }
+</script>
 
 </body>
 </html>
