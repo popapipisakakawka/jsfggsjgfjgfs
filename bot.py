@@ -844,12 +844,24 @@ async def add(call: types.CallbackQuery):
 async def save_cookie(msg: types.Message):
     if msg.from_user.id not in ADMINS:
         return
+
+    filename = msg.document.file_name
+
     file = await bot.get_file(msg.document.file_id)
-    await bot.download_file(file.file_path, filepath = f"{COOKIES_DIR}/{filename}")
+    await bot.download_file(
+        file.file_path,
+        filepath=f"{COOKIES_DIR}/{filename}"
+    )
+
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("INSERT INTO accounts (filename) VALUES (?)", (msg.document.file_name,))
+        await db.execute(
+            "INSERT INTO accounts (filename, sold) VALUES (?, 0)",
+            (filename,)
+        )
         await db.commit()
-    await msg.answer("🎄 Cookies добавлены")
+
+    await msg.answer("✅ Cookies успешно добавлены")
+
 
 @dp.callback_query_handler(lambda c: c.data == "give")
 async def give_start(call: types.CallbackQuery, state: FSMContext):
