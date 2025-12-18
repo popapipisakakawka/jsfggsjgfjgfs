@@ -137,6 +137,19 @@ async def init_db():
         await db.commit()
 
 
+
+async def migrate_db():
+    async with aiosqlite.connect(DB_PATH) as db:
+        try:
+            await db.execute(
+                "ALTER TABLE users ADD COLUMN banned INTEGER DEFAULT 0"
+            )
+            await db.commit()
+        except Exception:
+            pass  # колонка уже есть
+
+
+
 import secrets
 
 
@@ -147,26 +160,26 @@ def generate_uid():
 async def is_user_banned(user_id: int) -> bool:
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
-            "SELECT is_banned FROM users WHERE user_id=?",
+            "SELECT banned FROM users WHERE user_id=?",
             (user_id,)
         )
         row = await cur.fetchone()
         return bool(row and row[0])
 
-
 async def set_ban(value: int, uid: str = None, tg_id: int = None):
     async with aiosqlite.connect(DB_PATH) as db:
         if uid:
             await db.execute(
-                "UPDATE users SET is_banned=? WHERE uid=?",
+                "UPDATE users SET banned=? WHERE uid=?",
                 (value, uid)
             )
         elif tg_id:
             await db.execute(
-                "UPDATE users SET is_banned=? WHERE user_id=?",
+                "UPDATE users SET banned=? WHERE user_id=?",
                 (value, tg_id)
             )
         await db.commit()
+
 
 
 async def get_balance(user_id):
@@ -746,6 +759,7 @@ async def admin_toggle_ban(msg: types.Message, state: FSMContext):
                 "SELECT banned FROM users WHERE user_id=? OR uid=?",
                 (int(value), value)
             )
+
         else:
             cur = await db.execute(
                 "SELECT banned FROM users WHERE user_id=?",
@@ -1085,7 +1099,10 @@ def start_bot():
     asyncio.set_event_loop(loop)
 
     loop.run_until_complete(init_db())
+    loop.run_until_complete(migrate_db())
+
     executor.start_polling(dp, skip_updates=True)
+
 
 
 if __name__ == "__main__":
@@ -1094,9 +1111,3 @@ if __name__ == "__main__":
 
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8080)
-
-
-
-
-
-
