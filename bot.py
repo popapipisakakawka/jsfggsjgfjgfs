@@ -62,20 +62,28 @@ class AdminStates(StatesGroup):
 os.makedirs(COOKIES_DIR, exist_ok=True)
 os.makedirs(LOGS_DIR, exist_ok=True)
 
-async with aiosqlite.connect(DB_PATH) as db:
+async def init_db():
+    os.makedirs(COOKIES_DIR, exist_ok=True)
+    os.makedirs(LOGS_DIR, exist_ok=True)
 
+    async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY,
             uid TEXT UNIQUE,
-            balance REAL DEFAULT 0
-        )""")
+            balance REAL DEFAULT 0,
+            banned INTEGER DEFAULT 0
+        )
+        """)
+
         await db.execute("""
         CREATE TABLE IF NOT EXISTS accounts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             filename TEXT,
             sold INTEGER DEFAULT 0
-        )""")
+        )
+        """)
+
         await db.execute("""
         CREATE TABLE IF NOT EXISTS invoices (
             invoice_id INTEGER PRIMARY KEY,
@@ -83,8 +91,11 @@ async with aiosqlite.connect(DB_PATH) as db:
             amount REAL,
             paid INTEGER DEFAULT 0,
             created_at INTEGER
-        )""")
+        )
+        """)
+
         await db.commit()
+
 
 import secrets
 
