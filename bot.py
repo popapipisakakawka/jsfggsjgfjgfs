@@ -1077,134 +1077,119 @@ def admin_panel():
 
     html = f"""
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Admin Panel</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>Admin Panel</title>
+<style>
+body {{
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+    background: #0e1621;
+    color: #fff;
+}}
 
-    <style>
-        body {
-            background: #0f0f0f;
-            color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            margin: 0;
-            padding: 16px;
-        }
+.header {{
+    padding: 16px;
+    font-size: 22px;
+    font-weight: bold;
+    text-align: center;
+    border-bottom: 1px solid #1f2a36;
+}}
 
-        h2, h3 {
-            margin: 12px 0;
-        }
+.tabs {{
+    display: flex;
+    background: #17212b;
+}}
 
-        /* ===== CARDS ===== */
-        .cards {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            margin-bottom: 20px;
-        }
+.tab {{
+    flex: 1;
+    padding: 14px;
+    text-align: center;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    color: #aaa;
+}}
 
-        .card {
-            background: #1c1c1e;
-            border-radius: 14px;
-            padding: 14px;
-        }
+.tab.active {{
+    color: #fff;
+    border-bottom: 2px solid #4ea4f6;
+}}
 
-        .card-title {
-            font-size: 14px;
-            color: #aaa;
-        }
+.content {{
+    padding: 16px;
+    display: none;
+}}
 
-        .card-value {
-            font-size: 28px;
-            font-weight: bold;
-            margin-top: 4px;
-        }
+.content.active {{
+    display: block;
+}}
 
-        .card-sub {
-            font-size: 13px;
-            color: #777;
-        }
+.card {{
+    background: #17212b;
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}}
 
-        /* ===== LOGS ===== */
-        .logs {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
+.muted {{
+    color: #8a9ba8;
+    font-size: 13px;
+}}
 
-        .log-card {
-            background: #1c1c1e;
-            border-radius: 12px;
-            padding: 12px;
-            font-size: 13px;
-            line-height: 1.4;
-            color: #ddd;
-            word-break: break-word;
-        }
+pre {{
+    white-space: pre-wrap;
+    font-size: 13px;
+}}
+</style>
 
-        .log-time {
-            color: #888;
-            font-size: 12px;
-            margin-bottom: 4px;
-        }
-
-        .log-row {
-            margin-top: 2px;
-        }
-
-        /* ===== FOOTER ===== */
-        .footer {
-            margin-top: 30px;
-            text-align: center;
-            font-size: 12px;
-            color: #555;
-        }
-    </style>
+<script>
+function showTab(id) {{
+    document.querySelectorAll('.content').forEach(e => e.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.getElementById('tab-' + id).classList.add('active');
+}}
+</script>
 </head>
+
 <body>
 
-<h2>🎛 Админ-панель</h2>
+<div class="header">📊 Admin Panel</div>
 
-<!-- ===== STATS ===== -->
-<div class="cards">
-    <div class="card">
-        <div class="card-title">🍪 Cookies</div>
-        <div class="card-value">{{ cookies_count }}</div>
-        <div class="card-sub">файлов доступно</div>
-    </div>
-
-    <div class="card">
-        <div class="card-title">👤 Пользователи</div>
-        <div class="card-value">{{ users_count }}</div>
-        <div class="card-sub">зарегистрировано</div>
-    </div>
+<div class="tabs">
+    <div class="tab active" id="tab-users" onclick="showTab('users')">👤 Пользователи</div>
+    <div class="tab" id="tab-cookies" onclick="showTab('cookies')">🍪 Cookies</div>
+    <div class="tab" id="tab-logs" onclick="showTab('logs')">🧾 Логи</div>
 </div>
 
-<!-- ===== LOGS ===== -->
-<h3>📜 Последние события</h3>
-
-<div class="logs">
-    {% for log in logs %}
-        <div class="log-card">
-            {{ log }}
-        </div>
-    {% endfor %}
-
-    {% if logs|length == 0 %}
-        <div class="log-card">
-            Логи отсутствуют
-        </div>
-    {% endif %}
+<!-- USERS -->
+<div class="content active" id="users">
+    {"".join([f'''
+    <div class="card">
+        <b>UID:</b> {u[0]}<br>
+        <span class="muted">TG ID:</span> {u[1]}<br>
+        <span class="muted">Баланс:</span> {u[2]} USDT
+    </div>
+    ''' for u in users]) or "<div class='muted'>Нет пользователей</div>"}
 </div>
 
-<div class="footer">
-    MiniApp • Admin
+<!-- COOKIES -->
+<div class="content" id="cookies">
+    {"".join([f"<div class='card'>{c}</div>" for c in cookies]) or "<div class='muted'>Нет cookies</div>"}
+</div>
+
+<!-- LOGS -->
+<div class="content" id="logs">
+    <div class="card">
+        <pre>{"".join(sales) if sales else "Логов нет"}</pre>
+    </div>
 </div>
 
 </body>
 </html>
-
+"""
+    return html
 
 
 
