@@ -267,6 +267,10 @@ def main_kb(is_admin=False):
 back_kb = InlineKeyboardMarkup().add(
     InlineKeyboardButton("⬅️ Назад", callback_data="back")
 )
+cookie_done_kb = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="➕ Добавить ещё", callback_data="add_more_cookies")],
+    [InlineKeyboardButton(text="⬅ Назад", callback_data="admin")]
+])
 
 
 async def catalog_kb():
@@ -879,6 +883,12 @@ async def admin(call: types.CallbackQuery):
     if call.from_user.id in ADMINS:
         await call.message.answer("🎅 Админ-панель", reply_markup=admin_kb)
 
+@dp.callback_query_handler(lambda c: c.data == "add_more_cookies")
+async def add_more_cookies(call: types.CallbackQuery):
+    await call.message.answer("📁 Отправьте следующий cookie-файл", reply_markup=back_kb)
+    await call.answer()
+
+
 
 @dp.callback_query_handler(lambda c: c.data == "add")
 async def add(call: types.CallbackQuery):
@@ -892,19 +902,14 @@ async def save_cookie(msg: types.Message):
     if msg.from_user.id not in ADMINS:
         return
 
-    # имя файла
     filename = msg.document.file_name
-
-    # получаем файл
     file = await bot.get_file(msg.document.file_id)
 
-    # сохраняем файл
     await bot.download_file(
         file.file_path,
-        f"{COOKIES_DIR}/{filename}"
+        filepath=f"{COOKIES_DIR}/{filename}"
     )
 
-    # записываем в БД
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "INSERT INTO accounts (filename, sold) VALUES (?, 0)",
@@ -912,7 +917,11 @@ async def save_cookie(msg: types.Message):
         )
         await db.commit()
 
-    await msg.answer("✅ Cookies успешно добавлены")
+       await msg.answer(
+        "✅ Cookies успешно добавлены",
+        reply_markup=cookie_done_kb
+    )
+
 
 
 
