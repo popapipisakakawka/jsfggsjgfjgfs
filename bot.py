@@ -25,7 +25,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from asyncio import Lock
 
 # ================= НАСТРОЙКИ =================
-API_TOKEN = "8089023622:AAEUc8InFdHCCMw6tIjRJbqRFpIGdL0SiAY"
+API_TOKEN = "8575586934:AAGbuGCMRtmx-0zQ-qjNQ7I8FHb4dDB6rW4"
 CRYPTO_PAY_TOKEN = "503282:AAhicdmjgL8Xdl1CuQBAuTAKfkMUY5Vs81M"
 
 ADMINS = [7502766261, 7647339913, 7775660406, 8326123233]
@@ -252,15 +252,6 @@ def amount_kb(max_count: int = 5):
         )
 
     kb.add(InlineKeyboardButton("⬅️ Назад", callback_data="back"))
-    return kb
-
-
-def main_kb(is_admin=False):
-    kb = InlineKeyboardMarkup(row_width=1)
-    kb.add(InlineKeyboardButton("🎁 Купить аккаунт", callback_data="buy"))
-    kb.add(InlineKeyboardButton("💎 Пополнить баланс", callback_data="topup"))
-    if is_admin:
-        kb.add(InlineKeyboardButton("🎅 Админка", callback_data="admin"))
     return kb
 
 
@@ -933,6 +924,24 @@ async def save_cookie(msg: types.Message):
 
     await msg.answer("✅ Cookies успешно добавлены")
 
+async def restore_missing_cookies():
+    files = os.listdir(COOKIES_DIR)
+
+    async with aiosqlite.connect("data/shop.db") as db:
+        for filename in files:
+            # есть ли запись в базе?
+            cur = await db.execute("SELECT 1 FROM accounts WHERE filename = ?", (filename,))
+            exists = await cur.fetchone()
+
+            if exists is None:
+                print("Восстанавливаю файл:", filename)
+                await db.execute(
+                    "INSERT INTO accounts (filename, sold) VALUES (?, 0)",
+                    (filename,)
+                )
+
+        await db.commit()
+
 
 
 @dp.callback_query_handler(lambda c: c.data == "give")
@@ -1245,23 +1254,6 @@ def start_bot():
     executor.start_polling(dp, skip_updates=True)
 
 
-async def restore_missing_cookies():
-    files = os.listdir(COOKIES_DIR)
-
-    async with aiosqlite.connect("data/shop.db") as db:
-        for filename in files:
-            # есть ли запись в базе?
-            cur = await db.execute("SELECT 1 FROM accounts WHERE filename = ?", (filename,))
-            exists = await cur.fetchone()
-
-            if exists is None:
-                print("Восстанавливаю файл:", filename)
-                await db.execute(
-                    "INSERT INTO accounts (filename, sold) VALUES (?, 0)",
-                    (filename,)
-                )
-
-        await db.commit()
 
 
 
