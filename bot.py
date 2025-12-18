@@ -1,3 +1,11 @@
+BASE_DIR = "/data"
+COOKIES_DIR = f"{BASE_DIR}/cookies"
+LOGS_DIR = f"{BASE_DIR}/logs"
+DB_PATH = f"{BASE_DIR}/shop.db"
+
+
+
+
 # pip install aiogram==2.25.1 aiosqlite requests
 import datetime
 import asyncio
@@ -51,9 +59,11 @@ class AdminStates(StatesGroup):
     waiting_toggle_ban = State()
 
 # ================= DATABASE =================
-async def init_db():
-    os.makedirs("cookies", exist_ok=True)
-    async with aiosqlite.connect("shop.db") as db:
+os.makedirs(COOKIES_DIR, exist_ok=True)
+os.makedirs(LOGS_DIR, exist_ok=True)
+
+async with aiosqlite.connect(DB_PATH) as db:
+
         await db.execute("""
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY,
@@ -83,7 +93,7 @@ def generate_uid():
 
 async def is_user_banned(user_id: int) -> bool:
 
-    async with aiosqlite.connect("shop.db") as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
             "SELECT is_banned FROM users WHERE user_id=?",
             (user_id,)
@@ -93,7 +103,7 @@ async def is_user_banned(user_id: int) -> bool:
 
 
 async def set_ban(value: int, uid: str = None, tg_id: int = None):
-    async with aiosqlite.connect("shop.db") as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         if uid:
             await db.execute(
                 "UPDATE users SET is_banned=? WHERE uid=?",
@@ -108,8 +118,7 @@ async def set_ban(value: int, uid: str = None, tg_id: int = None):
 
 
 async def get_balance(user_id):
-    async with aiosqlite.connect("shop.db") as db:
-
+    async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
             "SELECT balance, uid FROM users WHERE user_id=?",
             (user_id,)
@@ -128,7 +137,7 @@ async def get_balance(user_id):
         return row[0]
 
 async def change_balance(user_id: int, amount: float):
-    async with aiosqlite.connect("shop.db") as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         # если пользователя нет — создаём
         cur = await db.execute(
             "SELECT balance FROM users WHERE user_id=?",
@@ -189,7 +198,7 @@ back_kb = InlineKeyboardMarkup().add(
 )
 
 async def catalog_kb():
-    async with aiosqlite.connect("shop.db") as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute("SELECT COUNT(*) FROM accounts WHERE sold=0")
         count = (await cur.fetchone())[0]
 
@@ -241,7 +250,7 @@ async def safe_delete(msg: types.Message):
 from aiogram.types import InputFile
 
 async def send_menu(chat_id: int, user_id: int):
-    async with aiosqlite.connect("shop.db") as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
             "SELECT banned FROM users WHERE user_id=?",
             (user_id,)
@@ -266,7 +275,7 @@ async def send_menu(chat_id: int, user_id: int):
 
     bal = await get_balance(user_id)
 
-    async with aiosqlite.connect("shop.db") as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
             "SELECT uid FROM users WHERE user_id=?",
             (user_id,)
@@ -382,7 +391,7 @@ async def topup_amount(msg: types.Message, state: FSMContext):
     invoice = create_invoice(amount, msg.from_user.id)
 
 
-    async with aiosqlite.connect("shop.db") as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "INSERT INTO invoices VALUES (?,?,?,?,?)",
             (invoice["invoice_id"], msg.from_user.id, amount, 0, int(time.time()))
@@ -422,7 +431,7 @@ async def check_payment(call: types.CallbackQuery):
 
     inv = items[0]
 
-    async with aiosqlite.connect("shop.db") as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
             "SELECT paid, created_at, user_id FROM invoices WHERE invoice_id=?",
             (invoice_id,)
@@ -460,12 +469,12 @@ async def check_payment(call: types.CallbackQuery):
 
     await change_balance(user_id, float(inv["amount"]))
 
-    async with aiosqlite.connect("shop.db") as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute("SELECT uid FROM users WHERE user_id=?", (user_id,))
         uid = (await cur.fetchone())[0]
 
     os.makedirs("logs", exist_ok=True)
-    with open("logs/topups.log", "a", encoding="utf-8") as log:
+    with open(f"{LOGS_DIR}/sales.log", "a") as log:
         log.write(
             f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | "
             f"uid={uid} | "
@@ -509,7 +518,7 @@ async def start_buy(call: types.CallbackQuery, state: FSMContext):
 
     await safe_delete(call.message)
 
-    async with aiosqlite.connect("shop.db") as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
             "SELECT COUNT(*) FROM accounts WHERE sold=0"
         )
@@ -581,7 +590,7 @@ async def confirm_buy(call: types.CallbackQuery, state: FSMContext):
         await call.answer("❌ Недостаточно средств", show_alert=True)
         return
 
-    async with aiosqlite.connect("shop.db") as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
             "SELECT id, filename FROM accounts WHERE sold=0 LIMIT ?",
             (amount,)
@@ -602,7 +611,7 @@ async def confirm_buy(call: types.CallbackQuery, state: FSMContext):
 
     # отправка файлов
     for _, filename in accounts:
-        path = f"cookies/{filename}"
+        filepath = f"{COOKIES_DIR}/{filename}"
         if os.path.exists(path):
             with open(path, "rb") as f:
                 await bot.send_document(user_id, f)
@@ -614,8 +623,8 @@ async def confirm_buy(call: types.CallbackQuery, state: FSMContext):
 
     # лог
     os.makedirs("logs", exist_ok=True)
-    with open("logs/sales.log", "a", encoding="utf-8") as log:
-        async with aiosqlite.connect("shop.db") as db:
+    with open(f"{LOGS_DIR}/sales.log", "a") as log:
+        async with aiosqlite.connect(DB_PATH) as db:
             cur = await db.execute("SELECT uid FROM users WHERE user_id=?", (user_id,))
             uid = (await cur.fetchone())[0]
 
@@ -691,7 +700,7 @@ async def admin_toggle_ban(msg: types.Message, state: FSMContext):
 
     value = msg.text.strip()
 
-    async with aiosqlite.connect("shop.db") as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         if value.isdigit():
             cur = await db.execute(
                 "SELECT banned FROM users WHERE user_id=? OR uid=?",
@@ -825,8 +834,8 @@ async def save_cookie(msg: types.Message):
     if msg.from_user.id not in ADMINS:
         return
     file = await bot.get_file(msg.document.file_id)
-    await bot.download_file(file.file_path, f"cookies/{msg.document.file_name}")
-    async with aiosqlite.connect("shop.db") as db:
+    await bot.download_file(file.file_path, filepath = f"{COOKIES_DIR}/{filename}")
+    async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("INSERT INTO accounts (filename) VALUES (?)", (msg.document.file_name,))
         await db.commit()
     await msg.answer("🎄 Cookies добавлены")
@@ -849,7 +858,7 @@ async def give_start(call: types.CallbackQuery, state: FSMContext):
 async def admin_give_uid(msg: types.Message, state: FSMContext):
     uid = msg.text.strip().upper()
 
-    async with aiosqlite.connect("shop.db") as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
             "SELECT user_id FROM users WHERE uid=?",
             (uid,)
@@ -885,7 +894,7 @@ async def admin_give_amount(msg: types.Message, state: FSMContext):
 
     # лог
     os.makedirs("logs", exist_ok=True)
-    with open("logs/admin_balance.log", "a", encoding="utf-8") as log:
+    with open(f"{LOGS_DIR}/sales.log", "a") as log:
         log.write(
             f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | "
             f"admin={msg.from_user.id} | "
@@ -925,7 +934,7 @@ async def broadcast_send(msg: types.Message, state: FSMContext):
     sent = 0
     failed = 0
 
-    async with aiosqlite.connect("shop.db") as db:
+    async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute("SELECT user_id FROM users")
         users = await cur.fetchall()
 
