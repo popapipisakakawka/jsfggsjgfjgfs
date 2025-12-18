@@ -1,7 +1,9 @@
 BASE_DIR = "/data"
-DB_PATH = "shop.db"
-COOKIES_DIR = "cookies"
-LOGS_DIR = "logs"
+
+DB_PATH = f"{BASE_DIR}/shop.db"
+COOKIES_DIR = f"{BASE_DIR}/cookies"
+LOGS_DIR = f"{BASE_DIR}/logs"
+
 
 
 # pip install aiogram==2.25.1 aiosqlite requests
