@@ -25,7 +25,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from asyncio import Lock
 
 # ================= НАСТРОЙКИ =================
-API_TOKEN = "8575586934:AAGbuGCMRtmx-0zQ-qjNQ7I8FHb4dDB6rW4"
+API_TOKEN = "8089023622:AAEUc8InFdHCCMw6tIjRJbqRFpIGdL0SiAY"
 CRYPTO_PAY_TOKEN = "503282:AAhicdmjgL8Xdl1CuQBAuTAKfkMUY5Vs81M"
 
 ADMINS = [7502766261, 7647339913, 7775660406, 8326123233]
@@ -1072,6 +1072,34 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 import sqlite3
 import os
+
+
+@app.delete("/admin/delete_cookie")
+async def delete_cookie(filename: str):
+    path = f"{COOKIES_DIR}/{filename}"
+
+    # удаляем файл
+    if os.path.exists(path):
+        os.remove(path)
+
+    # удаляем из базы
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM accounts WHERE filename=?", (filename,))
+        await db.commit()
+
+    return {"status": "ok", "deleted": filename}
+
+
+
+
+@app.get("/admin/get_cookies")
+async def get_cookies():
+    files = os.listdir(COOKIES_DIR)
+    return {"cookies": files}
+
+
+
+
 
 app = FastAPI()
 
