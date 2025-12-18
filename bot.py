@@ -1056,14 +1056,7 @@ LOGS_DIR = f"{BASE_DIR}/logs"
 from fastapi import HTTPException, Query
 
 @app.get("/", response_class=HTMLResponse)
-async def index(
-    request: Request,
-    tg_id: int = Query(None)
-):
-    # 🔒 ПРОВЕРКА АДМИНА
-    if tg_id not in ADMINS:
-        raise HTTPException(status_code=403, detail="Access denied")
-
+async def index(request: Request):
     users = []
     cookies = []
     logs = []
@@ -1240,10 +1233,3 @@ if __name__ == "__main__":
 
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8080)
-
-
-
-
-
-
-
