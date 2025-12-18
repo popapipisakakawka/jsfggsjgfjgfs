@@ -1,7 +1,10 @@
 BASE_DIR = "/data"
+
+DB_PATH = f"{BASE_DIR}/shop.db"
 COOKIES_DIR = f"{BASE_DIR}/cookies"
 LOGS_DIR = f"{BASE_DIR}/logs"
-DB_PATH = f"{BASE_DIR}/shop.db"
+
+
 
 # pip install aiogram==2.25.1 aiosqlite requests
 import datetime
@@ -12,6 +15,8 @@ import time
 import requests
 import aiosqlite
 
+from fastapi.templating import Jinja2Templates
+from fastapi import Request
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
@@ -26,6 +31,7 @@ CRYPTO_PAY_TOKEN = "503282:AAhicdmjgL8Xdl1CuQBAuTAKfkMUY5Vs81M"
 ADMINS = [7502766261, 7647339913, 7775660406, 8326123233]
 ACCOUNT_PRICE = 1.5
 INVOICE_TTL = 600  # 10 минут
+templates = Jinja2Templates(directory="templates")
 
 # ============================================
 logging.basicConfig(level=logging.INFO)
@@ -133,6 +139,19 @@ async def init_db():
         await db.commit()
 
 
+
+async def migrate_db():
+    async with aiosqlite.connect(DB_PATH) as db:
+        try:
+            await db.execute(
+                "ALTER TABLE users ADD COLUMN banned INTEGER DEFAULT 0"
+            )
+            await db.commit()
+        except Exception:
+            pass  # колонка уже есть
+
+
+
 import secrets
 
 
@@ -143,26 +162,26 @@ def generate_uid():
 async def is_user_banned(user_id: int) -> bool:
     async with aiosqlite.connect(DB_PATH) as db:
         cur = await db.execute(
-            "SELECT is_banned FROM users WHERE user_id=?",
+            "SELECT banned FROM users WHERE user_id=?",
             (user_id,)
         )
         row = await cur.fetchone()
         return bool(row and row[0])
 
-
 async def set_ban(value: int, uid: str = None, tg_id: int = None):
     async with aiosqlite.connect(DB_PATH) as db:
         if uid:
             await db.execute(
-                "UPDATE users SET is_banned=? WHERE uid=?",
+                "UPDATE users SET banned=? WHERE uid=?",
                 (value, uid)
             )
         elif tg_id:
             await db.execute(
-                "UPDATE users SET is_banned=? WHERE user_id=?",
+                "UPDATE users SET banned=? WHERE user_id=?",
                 (value, tg_id)
             )
         await db.commit()
+
 
 
 async def get_balance(user_id):
@@ -303,28 +322,14 @@ from aiogram.types import InputFile
 
 
 async def send_menu(chat_id: int, user_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        cur = await db.execute(
-            "SELECT banned FROM users WHERE user_id=?",
-            (user_id,)
+
+    # 🔒 ПРОВЕРКА БАНА
+    if await is_user_banned(user_id):
+        await bot.send_message(
+            chat_id,
+            "🚫 Вы заблокированы.\nОбратитесь в поддержку."
         )
-        row = await cur.fetchone()
-        if row and row[0]:
-            await bot.send_message(
-                chat_id,
-                "🚫 Вы заблокированы. Обратитесь в поддержку."
-            )
-            return
-
-    async def send_menu(chat_id: int, user_id: int):
-
-        # 🔒 ПРОВЕРКА БАНА
-        if await is_user_banned(user_id):
-            await bot.send_message(
-                chat_id,
-                "🚫 Вы заблокированы.\nОбратитесь в поддержку."
-            )
-            return
+        return
 
     bal = await get_balance(user_id)
 
@@ -346,7 +351,6 @@ async def send_menu(chat_id: int, user_id: int):
     kb.add(InlineKeyboardButton("🛒 Купить аккаунт", callback_data="buy"))
     kb.add(InlineKeyboardButton("💰 Пополнить баланс", callback_data="topup"))
     kb.add(InlineKeyboardButton("📖 FAQ", callback_data="faq"))
-    kb.add(InlineKeyboardButton("#BURGER-SQUAD", url="https://t.me/+bv7LVSzd1CUxYjQy"))
 
     if user_id in ADMINS:
         kb.add(InlineKeyboardButton("⚙️ Админка", callback_data="admin"))
@@ -357,6 +361,7 @@ async def send_menu(chat_id: int, user_id: int):
         caption=text,
         reply_markup=kb
     )
+
 
 
 @dp.callback_query_handler(lambda c: c.data == "menu", state="*")
@@ -518,7 +523,7 @@ async def check_payment(call: types.CallbackQuery):
         cur = await db.execute("SELECT uid FROM users WHERE user_id=?", (user_id,))
         uid = (await cur.fetchone())[0]
 
-    os.makedirs("logs", exist_ok=True)
+    os.makedirs(LOGS_DIR, exist_ok=True)
     with open(f"{LOGS_DIR}/sales.log", "a") as log:
         log.write(
             f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | "
@@ -756,11 +761,13 @@ async def admin_toggle_ban(msg: types.Message, state: FSMContext):
                 "SELECT banned FROM users WHERE user_id=? OR uid=?",
                 (int(value), value)
             )
+
         else:
             cur = await db.execute(
-                "SELECT banned FROM users WHERE uid=?",
-                (value,)
+                "SELECT banned FROM users WHERE user_id=?",
+                (user_id,)
             )
+
 
         row = await cur.fetchone()
 
@@ -964,7 +971,7 @@ async def admin_give_amount(msg: types.Message, state: FSMContext):
     await change_balance(user_id, amount)
 
     # лог
-    os.makedirs("logs", exist_ok=True)
+    os.makedirs(LOGS_DIR, exist_ok=True)
     with open(f"{LOGS_DIR}/sales.log", "a") as log:
         log.write(
             f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | "
@@ -1040,24 +1047,23 @@ import os
 
 app = FastAPI()
 
-DB_PATH = "shop.db"
-COOKIES_DIR = "cookies"
-LOGS_DIR = "logs"
+BASE_DIR = "/data"
+DB_PATH = f"{BASE_DIR}/shop.db"
+COOKIES_DIR = f"{BASE_DIR}/cookies"
+LOGS_DIR = f"{BASE_DIR}/logs"
 
 
 @app.get("/", response_class=HTMLResponse)
-def index():
+async def index(request: Request):
     users = []
     cookies = []
-    sales = []
+    logs = []
 
     if os.path.exists(DB_PATH):
         conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
-
         cur.execute("SELECT user_id, uid, balance FROM users")
         users = cur.fetchall()
-
         conn.close()
 
     if os.path.exists(COOKIES_DIR):
@@ -1065,24 +1071,134 @@ def index():
 
     if os.path.exists(f"{LOGS_DIR}/sales.log"):
         with open(f"{LOGS_DIR}/sales.log", "r", encoding="utf-8") as f:
-            sales = f.readlines()[-20:]
+            logs = f.readlines()[::-1]
 
-    html = "<h1>📊 Admin Panel</h1>"
+    return templates.TemplateResponse(
+        "admin.html",
+        {
+            "request": request,
+            "users": users,
+            "cookies": cookies,
+            "logs": logs,
+            "cookies_count": len(cookies),
+            "users_count": len(users)
+        }
+    )
 
-    html += "<h2>👤 Пользователи</h2><ul>"
-    for u in users:
-        html += f"<li>UID: {u[1]} | TG: {u[0]} | Баланс: {u[2]}</li>"
-    html += "</ul>"
+    html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Admin Panel</title>
+<style>
+body {{
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+    background: #0e1621;
+    color: #fff;
+}}
 
-    html += "<h2>🍪 Cookies</h2><ul>"
-    for c in cookies:
-        html += f"<li>{c}</li>"
-    html += "</ul>"
+.header {{
+    padding: 16px;
+    font-size: 22px;
+    font-weight: bold;
+    text-align: center;
+    border-bottom: 1px solid #1f2a36;
+}}
 
-    html += "<h2>🧾 Последние продажи</h2><pre>"
-    html += "".join(sales)
-    html += "</pre>"
+.tabs {{
+    display: flex;
+    background: #17212b;
+}}
 
+.tab {{
+    flex: 1;
+    padding: 14px;
+    text-align: center;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    color: #aaa;
+}}
+
+.tab.active {{
+    color: #fff;
+    border-bottom: 2px solid #4ea4f6;
+}}
+
+.content {{
+    padding: 16px;
+    display: none;
+}}
+
+.content.active {{
+    display: block;
+}}
+
+.card {{
+    background: #17212b;
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}}
+
+.muted {{
+    color: #8a9ba8;
+    font-size: 13px;
+}}
+
+pre {{
+    white-space: pre-wrap;
+    font-size: 13px;
+}}
+</style>
+
+<script>
+function showTab(id) {{
+    document.querySelectorAll('.content').forEach(e => e.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.getElementById('tab-' + id).classList.add('active');
+}}
+</script>
+</head>
+
+<body>
+
+<div class="header">📊 Admin Panel</div>
+
+<div class="tabs">
+    <div class="tab active" id="tab-users" onclick="showTab('users')">👤 Пользователи</div>
+    <div class="tab" id="tab-cookies" onclick="showTab('cookies')">🍪 Cookies</div>
+    <div class="tab" id="tab-logs" onclick="showTab('logs')">🧾 Логи</div>
+</div>
+
+<!-- USERS -->
+<div class="content active" id="users">
+    {"".join([f'''
+    <div class="card">
+        <b>UID:</b> {u[0]}<br>
+        <span class="muted">TG ID:</span> {u[1]}<br>
+        <span class="muted">Баланс:</span> {u[2]} USDT
+    </div>
+    ''' for u in users]) or "<div class='muted'>Нет пользователей</div>"}
+</div>
+
+<!-- COOKIES -->
+<div class="content" id="cookies">
+    {"".join([f"<div class='card'>{c}</div>" for c in cookies]) or "<div class='muted'>Нет cookies</div>"}
+</div>
+
+<!-- LOGS -->
+<div class="content" id="logs">
+    <div class="card">
+        <pre>{"".join(sales) if sales else "Логов нет"}</pre>
+    </div>
+</div>
+
+</body>
+</html>
+"""
     return html
 
 
@@ -1090,23 +1206,32 @@ def index():
 
 
 
+
 # ================= START =================
-if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
+def start_bot():
+    import asyncio
+    from aiogram import executor
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     loop.run_until_complete(init_db())
-    import uvicorn
+    loop.run_until_complete(migrate_db())
+
+    executor.start_polling(dp, skip_updates=True)
+
+
+
+if __name__ == "__main__":
     import threading
+    threading.Thread(target=start_bot, daemon=True).start()
+
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8080)
 
 
-    def start_bot():
-        executor.start_polling(dp, skip_updates=True)
 
 
-    threading.Thread(target=start_bot).start()
 
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=int(os.environ.get("PORT", 8000))
-    )
+
 
