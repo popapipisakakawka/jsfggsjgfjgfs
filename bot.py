@@ -1053,8 +1053,17 @@ COOKIES_DIR = f"{BASE_DIR}/cookies"
 LOGS_DIR = f"{BASE_DIR}/logs"
 
 
+from fastapi import HTTPException, Query
+
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
+async def index(
+    request: Request,
+    tg_id: int = Query(None)
+):
+    # 🔒 ПРОВЕРКА АДМИНА
+    if tg_id not in ADMINS:
+        raise HTTPException(status_code=403, detail="Access denied")
+
     users = []
     cookies = []
     logs = []
@@ -1084,6 +1093,7 @@ async def index(request: Request):
             "users_count": len(users)
         }
     )
+
 
     html = f"""
 <!DOCTYPE html>
@@ -1154,6 +1164,8 @@ pre {{
 </style>
 
 <script>
+
+        
 function showTab(id) {{
     document.querySelectorAll('.content').forEach(e => e.classList.remove('active'));
     document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
