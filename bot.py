@@ -307,28 +307,14 @@ from aiogram.types import InputFile
 
 
 async def send_menu(chat_id: int, user_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        cur = await db.execute(
-            "SELECT banned FROM users WHERE user_id=?",
-            (user_id,)
+
+    # 🔒 ПРОВЕРКА БАНА
+    if await is_user_banned(user_id):
+        await bot.send_message(
+            chat_id,
+            "🚫 Вы заблокированы.\nОбратитесь в поддержку."
         )
-        row = await cur.fetchone()
-        if row and row[0]:
-            await bot.send_message(
-                chat_id,
-                "🚫 Вы заблокированы. Обратитесь в поддержку."
-            )
-            return
-
-    async def send_menu(chat_id: int, user_id: int):
-
-        # 🔒 ПРОВЕРКА БАНА
-        if await is_user_banned(user_id):
-            await bot.send_message(
-                chat_id,
-                "🚫 Вы заблокированы.\nОбратитесь в поддержку."
-            )
-            return
+        return
 
     bal = await get_balance(user_id)
 
@@ -350,7 +336,6 @@ async def send_menu(chat_id: int, user_id: int):
     kb.add(InlineKeyboardButton("🛒 Купить аккаунт", callback_data="buy"))
     kb.add(InlineKeyboardButton("💰 Пополнить баланс", callback_data="topup"))
     kb.add(InlineKeyboardButton("📖 FAQ", callback_data="faq"))
-    kb.add(InlineKeyboardButton("#BURGER-SQUAD", url="https://t.me/+bv7LVSzd1CUxYjQy"))
 
     if user_id in ADMINS:
         kb.add(InlineKeyboardButton("⚙️ Админка", callback_data="admin"))
@@ -361,6 +346,7 @@ async def send_menu(chat_id: int, user_id: int):
         caption=text,
         reply_markup=kb
     )
+
 
 
 @dp.callback_query_handler(lambda c: c.data == "menu", state="*")
@@ -522,7 +508,7 @@ async def check_payment(call: types.CallbackQuery):
         cur = await db.execute("SELECT uid FROM users WHERE user_id=?", (user_id,))
         uid = (await cur.fetchone())[0]
 
-    os.makedirs("logs", exist_ok=True)
+    os.makedirs(LOGS_DIR, exist_ok=True)
     with open(f"{LOGS_DIR}/sales.log", "a") as log:
         log.write(
             f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | "
@@ -762,9 +748,10 @@ async def admin_toggle_ban(msg: types.Message, state: FSMContext):
             )
         else:
             cur = await db.execute(
-                "SELECT banned FROM users WHERE uid=?",
-                (value,)
+                "SELECT banned FROM users WHERE user_id=?",
+                (user_id,)
             )
+
 
         row = await cur.fetchone()
 
@@ -968,7 +955,7 @@ async def admin_give_amount(msg: types.Message, state: FSMContext):
     await change_balance(user_id, amount)
 
     # лог
-    os.makedirs("logs", exist_ok=True)
+    os.makedirs(LOGS_DIR, exist_ok=True)
     with open(f"{LOGS_DIR}/sales.log", "a") as log:
         log.write(
             f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | "
@@ -1044,11 +1031,6 @@ import os
 
 app = FastAPI()
 
-DB_PATH = "shop.db"
-COOKIES_DIR = "cookies"
-LOGS_DIR = "logs"
-
-
 @app.get("/", response_class=HTMLResponse)
 def index():
     users = []
@@ -1095,24 +1077,24 @@ def index():
 
 
 # ================= START =================
-if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
+def start_bot():
+    import asyncio
+    from aiogram import executor
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     loop.run_until_complete(init_db())
-    import uvicorn
+    executor.start_polling(dp, skip_updates=True)
+
+
+if __name__ == "__main__":
     import threading
+    threading.Thread(target=start_bot, daemon=True).start()
 
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8080)
 
-    def start_bot():
-        import asyncio
-        from aiogram import executor
-
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        executor.start_polling(dp, skip_updates=True)
-import threading
-
-threading.Thread(target=start_bot, daemon=True).start()
 
 
 
