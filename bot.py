@@ -1105,13 +1105,15 @@ if __name__ == "__main__":
 
 
     def start_bot():
-    import asyncio
-    from aiogram import executor
+        import asyncio
+        from aiogram import executor
 
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
 
-    executor.start_polling(dp, skip_updates=True)
+        executor.start_polling(dp, skip_updates=True)
+
+
 
 
 
