@@ -902,14 +902,19 @@ async def save_cookie(msg: types.Message):
     if msg.from_user.id not in ADMINS:
         return
 
+    # имя файла
     filename = msg.document.file_name
+
+    # получаем файл
     file = await bot.get_file(msg.document.file_id)
 
+    # сохраняем файл
     await bot.download_file(
         file.file_path,
-        filepath=f"{COOKIES_DIR}/{filename}"
+        f"{COOKIES_DIR}/{filename}"
     )
 
+    # записываем в БД
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "INSERT INTO accounts (filename, sold) VALUES (?, 0)",
@@ -917,10 +922,7 @@ async def save_cookie(msg: types.Message):
         )
         await db.commit()
 
-       await msg.answer(
-        "✅ Cookies успешно добавлены",
-        reply_markup=cookie_done_kb
-    )
+    await msg.answer("✅ Cookies успешно добавлены")
 
 
 
