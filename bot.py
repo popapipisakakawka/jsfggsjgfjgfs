@@ -841,19 +841,30 @@ async def add(call: types.CallbackQuery):
     await call.message.answer("🎄 Отправьте cookie-файлы", reply_markup=back_kb)
 
 @dp.message_handler(content_types=types.ContentType.DOCUMENT)
-async def save_cookie(message: types.Message):
-    document = message.document
+async def save_cookie(msg: types.Message):
+    if msg.from_user.id not in ADMINS:
+        return
 
-    file = await bot.get_file(document.file_id)
+    filename = msg.document.file_name  # ← ОБЯЗАТЕЛЬНО
 
-    filename = document.file_name  # ✅ ВОТ ОНО
+    file = await bot.get_file(msg.document.file_id)
+
+    print("Saving file as:", filename)  # ← ВОТ СЮДА
 
     await bot.download_file(
         file.file_path,
         filepath=f"{COOKIES_DIR}/{filename}"
     )
 
-    await message.answer("🍪 Cookie сохранён")
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT INTO accounts (filename, sold) VALUES (?, 0)",
+            (filename,)
+        )
+        await db.commit()
+
+    await msg.answer("✅ Cookies успешно добавлены")
+
 
 
 
