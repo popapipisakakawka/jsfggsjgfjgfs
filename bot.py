@@ -1,7 +1,8 @@
 BASE_DIR = "/data"
-COOKIES_DIR = f"{BASE_DIR}/cookies"
-LOGS_DIR = f"{BASE_DIR}/logs"
-DB_PATH = f"{BASE_DIR}/shop.db"
+DB_PATH = "shop.db"
+COOKIES_DIR = "cookies"
+LOGS_DIR = "logs"
+
 
 # pip install aiogram==2.25.1 aiosqlite requests
 import datetime
