@@ -304,7 +304,7 @@ admin_kb.add(InlineKeyboardButton("📢 Оповещение", callback_data="br
 admin_kb.add(InlineKeyboardButton("🎁 Выдать баланс", callback_data="give"))
 admin_kb.add(InlineKeyboardButton("📊 История по UID", callback_data="admin_uid_history"))
 admin_kb.add(InlineKeyboardButton("🚫 Бан / Разбан пользователя", callback_data="admin_toggle_ban"))
-admin_kb.add(InlineKeyboardButton("📊 Панель",web_app=types.WebAppInfo(url="https://worker-production-1685.up.railway.app/")))
+admin_kb.add(InlineKeyboardButton("📊 Панель",web_app=types.WebAppInfo(url="https://ТВОЙ_RAILWAY_URL")))
 admin_kb.add(InlineKeyboardButton("⬅️ Назад", callback_data="back"))
 
 
@@ -1045,45 +1045,152 @@ import os
 
 app = FastAPI()
 
+BASE_DIR = "/data"
+DB_PATH = f"{BASE_DIR}/shop.db"
+COOKIES_DIR = f"{BASE_DIR}/cookies"
+LOGS_DIR = f"{BASE_DIR}/logs"
+
+
 @app.get("/", response_class=HTMLResponse)
-def index():
+def admin_panel():
     users = []
     cookies = []
     sales = []
 
+    # ---------- USERS ----------
     if os.path.exists(DB_PATH):
         conn = sqlite3.connect(DB_PATH)
         cur = conn.cursor()
-
-        cur.execute("SELECT user_id, uid, balance FROM users")
+        cur.execute("SELECT uid, user_id, balance FROM users")
         users = cur.fetchall()
-
         conn.close()
 
+    # ---------- COOKIES ----------
     if os.path.exists(COOKIES_DIR):
-        cookies = os.listdir(COOKIES_DIR)
+        cookies = sorted(os.listdir(COOKIES_DIR))
 
-    if os.path.exists(f"{LOGS_DIR}/sales.log"):
-        with open(f"{LOGS_DIR}/sales.log", "r", encoding="utf-8") as f:
-            sales = f.readlines()[-20:]
+    # ---------- LOGS ----------
+    sales_log = f"{LOGS_DIR}/sales.log"
+    if os.path.exists(sales_log):
+        with open(sales_log, "r", encoding="utf-8") as f:
+            sales = f.readlines()[-30:]
 
-    html = "<h1>📊 Admin Panel</h1>"
+    html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Admin Panel</title>
+<style>
+body {{
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+    background: #0e1621;
+    color: #fff;
+}}
 
-    html += "<h2>👤 Пользователи</h2><ul>"
-    for u in users:
-        html += f"<li>UID: {u[1]} | TG: {u[0]} | Баланс: {u[2]}</li>"
-    html += "</ul>"
+.header {{
+    padding: 16px;
+    font-size: 22px;
+    font-weight: bold;
+    text-align: center;
+    border-bottom: 1px solid #1f2a36;
+}}
 
-    html += "<h2>🍪 Cookies</h2><ul>"
-    for c in cookies:
-        html += f"<li>{c}</li>"
-    html += "</ul>"
+.tabs {{
+    display: flex;
+    background: #17212b;
+}}
 
-    html += "<h2>🧾 Последние продажи</h2><pre>"
-    html += "".join(sales)
-    html += "</pre>"
+.tab {{
+    flex: 1;
+    padding: 14px;
+    text-align: center;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    color: #aaa;
+}}
 
+.tab.active {{
+    color: #fff;
+    border-bottom: 2px solid #4ea4f6;
+}}
+
+.content {{
+    padding: 16px;
+    display: none;
+}}
+
+.content.active {{
+    display: block;
+}}
+
+.card {{
+    background: #17212b;
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}}
+
+.muted {{
+    color: #8a9ba8;
+    font-size: 13px;
+}}
+
+pre {{
+    white-space: pre-wrap;
+    font-size: 13px;
+}}
+</style>
+
+<script>
+function showTab(id) {{
+    document.querySelectorAll('.content').forEach(e => e.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.getElementById('tab-' + id).classList.add('active');
+}}
+</script>
+</head>
+
+<body>
+
+<div class="header">📊 Admin Panel</div>
+
+<div class="tabs">
+    <div class="tab active" id="tab-users" onclick="showTab('users')">👤 Пользователи</div>
+    <div class="tab" id="tab-cookies" onclick="showTab('cookies')">🍪 Cookies</div>
+    <div class="tab" id="tab-logs" onclick="showTab('logs')">🧾 Логи</div>
+</div>
+
+<!-- USERS -->
+<div class="content active" id="users">
+    {"".join([f'''
+    <div class="card">
+        <b>UID:</b> {u[0]}<br>
+        <span class="muted">TG ID:</span> {u[1]}<br>
+        <span class="muted">Баланс:</span> {u[2]} USDT
+    </div>
+    ''' for u in users]) or "<div class='muted'>Нет пользователей</div>"}
+</div>
+
+<!-- COOKIES -->
+<div class="content" id="cookies">
+    {"".join([f"<div class='card'>{c}</div>" for c in cookies]) or "<div class='muted'>Нет cookies</div>"}
+</div>
+
+<!-- LOGS -->
+<div class="content" id="logs">
+    <div class="card">
+        <pre>{"".join(sales) if sales else "Логов нет"}</pre>
+    </div>
+</div>
+
+</body>
+</html>
+"""
     return html
+
 
 
 
@@ -1111,3 +1218,10 @@ if __name__ == "__main__":
 
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8080)
+
+
+
+
+
+
+
