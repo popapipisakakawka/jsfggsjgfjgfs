@@ -25,7 +25,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from asyncio import Lock
 
 # ================= НАСТРОЙКИ =================
-API_TOKEN = "8089023622:AAEUc8InFdHCCMw6tIjRJbqRFpIGdL0SiAY"
+API_TOKEN = "8575586934:AAGbuGCMRtmx-0zQ-qjNQ7I8FHb4dDB6rW4"
 CRYPTO_PAY_TOKEN = "503282:AAhicdmjgL8Xdl1CuQBAuTAKfkMUY5Vs81M"
 
 ADMINS = [7502766261, 7647339913, 7775660406, 8326123233]
